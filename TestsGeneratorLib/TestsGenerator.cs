@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections;
+﻿
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,36 +10,50 @@ using System.Threading.Tasks.Dataflow;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Formatting;
 
 namespace TestsGeneratorLib
 {
-    /// <summary>
-    ///  https://docs.microsoft.com/en-us/dotnet/standard/io/asynchronous-file-i-o
-    /// </summary>
-    public class TestsGenerator
+   
+    public static class TestsGenerator
     {
-        private readonly int _readFileThreadsAmount;
-        private readonly int _processedTasksThreadsAmount;
-        private readonly int _writeFileThreadsAmount;
-
-        public TestsGenerator(int readFileThreadsAmount, int processedTasksThreadsAmount, int writeFileThreadsAmount)
+        private static string DirPath { get; set; } 
+        /// <summary>
+        /// Generates test classes using Dataflow API:. A 3 block conveyor belt is used :
+        /// 1. parallel loading of sources into memory
+        /// 2. generating test classes in multi-threaded mode
+        /// 3. parallel writing of results to disk
+        /// Execution Dataflow Block Options are used to configure the number of running threads in a pipeline block.
+        /// First, all dataflow blocks are described, after which they must be linked using the method LinkTo.
+        /// To terminate the pipeline, call the method Completion.
+        /// </summary>
+        /// <param name="classPaths"> a list of files for classes from which test classes should be generated </param>
+        /// <param name="testPath"> path to the folder for writing the created files</param>
+        /// <param name="filesToLoadThreadAmount"> limit on the number of files uploaded at a time </param>
+        /// <param name="testToGenerateThreadAmount"> limit on the max number of simultaneously processed tasks </param>
+        /// <param name="filesToWriteThreadAmount"> limitation on simultaneously recorded files </param>
+        /// <returns>
+        /// files with test classes (one test class per file, regardless of how the tested classes were located in the source files);
+        /// all generated test classes are compiled when included in a separate project, in which there is a link to the project with the tested classes;
+        /// all generated tests fail.
+        /// </returns>
+        public static Task GenerateCLasses(IEnumerable<string> classPaths, string testPath, int filesToLoadThreadAmount, int testToGenerateThreadAmount, int filesToWriteThreadAmount)
         {
-            _readFileThreadsAmount = readFileThreadsAmount;
-            _processedTasksThreadsAmount = processedTasksThreadsAmount;
-            _writeFileThreadsAmount = writeFileThreadsAmount;
-        }
 
-        public Task GenerateCLasses(IEnumerable<string> classPaths, string testPath)
-        {
-            var maxFilesToLoad = new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = _readFileThreadsAmount };
-            var maxTestToGenerate = new ExecutionDataflowBlockOptions() {MaxDegreeOfParallelism = _processedTasksThreadsAmount};
-            var maxFilesToWrite = new ExecutionDataflowBlockOptions() {MaxDegreeOfParallelism = _writeFileThreadsAmount};
+            if (!Directory.Exists(DirPath))
+            {
+                Console.WriteLine(new FileNotFoundException().Message);
+                return Task.CompletedTask;
+            }
 
-            // Create a dataflow block that takes a  path as input and returns a file text
+            DirPath = testPath;
+            var maxFilesToLoad = new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = filesToLoadThreadAmount };
+            var maxTestToGenerate = new ExecutionDataflowBlockOptions() {MaxDegreeOfParallelism = testToGenerateThreadAmount};
+            var maxFilesToWrite = new ExecutionDataflowBlockOptions() {MaxDegreeOfParallelism = filesToWriteThreadAmount};
+
+            // Create a dataflow block that takes a  path as input and return classes as text (string str)
             var loadClasses = new TransformBlock<string, string> (GetTextFromFile,maxFilesToLoad); // add lambda and try/catch
             
-            // Create a dataflow block that takes a file text and return generated Tests
+            // Create a dataflow block that takes a text class and return a generated Test
             var generateTests = new TransformBlock<string, string[]>(GetTestFromText, maxTestToGenerate); // add lambda and try/catch
             
             // Create a dataflow block that save generated Test on disk 
@@ -47,11 +61,13 @@ namespace TestsGeneratorLib
             
             //
             // Connect the dataflow blocks to form a pipeline.
-            // 
+            //
+            
             var linkOption = new DataflowLinkOptions
             {
                 PropagateCompletion = true
             };
+            
             loadClasses.LinkTo(generateTests, linkOption);
             generateTests.LinkTo(writeTests, linkOption);
 
@@ -60,12 +76,16 @@ namespace TestsGeneratorLib
                 loadClasses.Post(path);
             }
             
-            // Mark the head of the pipeline as complete.
-            loadClasses.Completion.Wait();
-
+            // Mark the head of the pipeline as complete. 
+            loadClasses.Completion.Wait(); // пока wait ибо классы просто не успевают генерится 
             return writeTests.Completion;
         }
 
+        /// <summary>
+        /// Reading a file asynchronously via a buffer
+        /// </summary>
+        /// <param name="path"> file path of the stored classes </param>
+        /// <returns> class as text </returns>
         private static async Task<string> GetTextFromFile(string path)
         {
             using var sourceStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
@@ -85,21 +105,61 @@ namespace TestsGeneratorLib
 
             return sb.ToString();
         }
+        
+        /// <summary>
+        /// Asynchronous file write via streams
+        /// </summary>
+        /// <param name="tests"> array of string representation of the generated tests </param>
+        /// <returns> completed task </returns>
+        private static async Task WriteTests(string[] tests)
+        {
+            
+            foreach (var test in tests)
+            {
+                var tree = CSharpSyntaxTree.ParseText(test);
+                var fileName =tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().First().Identifier.Text;
+                var filePath = Path.Combine( DirPath,fileName+".cs");
+                
+                using var outputFile = new StreamWriter(filePath);
+                await outputFile.WriteAsync(test);
+                
+                // var encodedText = Encoding.Unicode.GetBytes(test);
 
-        private static async Task<string[]> GetTestFromText(string text)
+                //
+                // using var sourceStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None,
+                //     bufferSize: 4096, useAsync: true);
+                //
+                // await sourceStream.WriteAsync(encodedText, 0, encodedText.Length); 
+                // mmm работает через жопу, одобряю такую документацию 
+            }
+        }
+        
+        /// <summary>
+        /// Generating classes directly.
+        /// 1. Generating classes declaration from the text
+        /// 2. Based on classes declaration generate Tests
+        /// 3. Store Tests on thread-safe BlockingCollection. Used when some threads fill a collection and others
+        /// retrieve items from it. If at the moment of requesting the next element the collection is empty,
+        /// then the reading side goes into the state of waiting for a new element (polling). 
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns> array of generated tests</returns>
+        private static string[] GetTestFromText(string text)
         {
             var classes = GetClassesFromText(text);
+            var tests = new BlockingCollection<string>();
             foreach (var classDeclaration in classes)
             {
-                CreateTest(classDeclaration);
+               tests.Add(CreateTest(classDeclaration));
             }
-            return null;
+            return tests.ToArray();
         }
 
         /// <summary>
         /// https://blog.zwezdin.com/2013/code-generating-with-roslyn/
+        /// We create a test in the form of a tree where is the root namespace.
         /// </summary>
-        /// <param name="classDeclaration"></param>
+        /// <param name="classDeclaration"> generated test </param>
         private static string CreateTest(BaseTypeDeclarationSyntax classDeclaration)
         {
             // add methods
@@ -146,11 +206,16 @@ namespace TestsGeneratorLib
                 )
                 .AddMembers(@namespace)
                 .NormalizeWhitespace()
-                .ToString();
+                .ToFullString();
             
             return test;
         }
 
+        /// <summary>
+        /// Using Roslyn, we generate classes stored in the text
+        /// </summary>
+        /// <param name="text"> file as text </param>
+        /// <returns> Collection of class declaration </returns>
         private static IEnumerable<ClassDeclarationSyntax> GetClassesFromText(string text)
         {
             var tree = CSharpSyntaxTree.ParseText(text);
@@ -158,22 +223,6 @@ namespace TestsGeneratorLib
         }
         
         
-        
-
-        private static async Task WriteTests(string[] tests)
-        {
-            var filePath = "";
-
-            foreach (var test in tests)
-            {
-                var encodedText = Encoding.Unicode.GetBytes(test);
-
-                using var sourceStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None,
-                    bufferSize: 4096, useAsync: true);
-
-                await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
-            }
-        }
 
     }
     

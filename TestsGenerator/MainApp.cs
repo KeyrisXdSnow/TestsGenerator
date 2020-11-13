@@ -6,8 +6,9 @@ namespace TestsGenerator
 {
     internal class MainApp
     {
-        public static void Main(string[] args)
+        public static void Main()
         {
+            const string testPath = "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\C1lasses\\Tests\\";
             var collection = new List<string>
             {
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ClassFormatter.cs",
@@ -16,18 +17,8 @@ namespace TestsGenerator
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\MethodFormatter.cs",
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\PropertiesFormatter.cs"
             };
-
-            // for (int i = 0; i < 10; i++)
-            // {
-            //     stack.Add(i.ToString());
-            // }
-
-            var generator = new TestsGeneratorLib.TestsGenerator(4,4,4);
-            generator.GenerateCLasses(collection, "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\Tests\\");
+            TestsGeneratorLib.TestsGenerator.GenerateCLasses(collection,testPath,4,4,4);
             Console.WriteLine("Finish");
-
-
-
         }
     }
 }
