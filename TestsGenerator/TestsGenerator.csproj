@@ -38,6 +38,11 @@
         <Reference Include="System.Xml" />
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="Classes\ClassFormatter.cs" />
+        <Compile Include="Classes\ConstructorFormatter.cs" />
+        <Compile Include="Classes\FieldFormatter.cs" />
+        <Compile Include="Classes\MethodFormatter.cs" />
+        <Compile Include="Classes\PropertiesFormatter.cs" />
         <Compile Include="MainApp.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
     </ItemGroup>
