@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using TestsGeneratorLib;
 
 namespace TestsGenerator
@@ -23,6 +24,7 @@ namespace TestsGenerator
 
             var generator = new TestsGeneratorLib.TestsGenerator(4,4,4);
             generator.GenerateCLasses(collection, "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\Tests\\");
+            Console.WriteLine("Finish");
 
 
 

@@ -63,4 +63,9 @@ namespace AssemblyBrowserLib.format
             return "";
         }
     }
+
+    class TestsClass
+    {
+        
+    }
 }
