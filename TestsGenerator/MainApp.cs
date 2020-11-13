@@ -7,18 +7,23 @@ namespace TestsGenerator
     {
         public static void Main(string[] args)
         {
-            Stack<string> stack = new Stack<string>() ;
-            
-            stack.Push("E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ClassFormatter.cs");
-            stack.Push("E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ConstructorFormatter.cs");
-            stack.Push("E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\FieldFormatter.cs");
-            stack.Push("E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\MethodFormatter.cs");
-            stack.Push("E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\PropertiesFormatter.cs");
+            var collection = new List<string>
+            {
+                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ClassFormatter.cs",
+                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ConstructorFormatter.cs",
+                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\FieldFormatter.cs",
+                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\MethodFormatter.cs",
+                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\PropertiesFormatter.cs"
+            };
+
             // for (int i = 0; i < 10; i++)
             // {
-            //     stack.Push(i.ToString());
+            //     stack.Add(i.ToString());
             // }
-            
+
+            var generator = new TestsGeneratorLib.TestsGenerator(4,4,4);
+            generator.GenerateCLasses(collection, "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\Tests\\");
+
 
 
         }

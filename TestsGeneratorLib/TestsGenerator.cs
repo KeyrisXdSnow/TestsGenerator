@@ -23,7 +23,7 @@ namespace TestsGeneratorLib
             _writeFileThreadsAmount = writeFileThreadsAmount;
         }
 
-        public Task GenerateCLasses()
+        public Task GenerateCLasses(IEnumerable<string> classPaths, string testPath)
         {
             var maxFilesToLoad = new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = _readFileThreadsAmount };
             var maxTestToGenerate = new ExecutionDataflowBlockOptions() {MaxDegreeOfParallelism = _processedTasksThreadsAmount};
@@ -47,11 +47,14 @@ namespace TestsGeneratorLib
             };
             loadClasses.LinkTo(generateTests, linkOption);
             generateTests.LinkTo(writeTests, linkOption);
-            
-            //// вот здесь непросредственно цикл переборов путей
+
+            foreach (var path in classPaths)
+            {
+                loadClasses.Post(path);
+            }
             
             // Mark the head of the pipeline as complete.
-            loadClasses.Completion.Wait();
+            loadClasses.Complete();
 
             return writeTests.Completion;
         }
@@ -66,9 +69,10 @@ namespace TestsGeneratorLib
             var buffer = new byte[0x1000];
             int numRead;
             
+            
             while ((numRead = await sourceStream.ReadAsync(buffer, 0, buffer.Length)) != 0)
             {
-                var text = Encoding.Unicode.GetString(buffer, 0, numRead);
+                var text = Encoding.UTF8.GetString(buffer, 0, numRead);
                 sb.Append(text);
             }
 
@@ -82,9 +86,19 @@ namespace TestsGeneratorLib
 
         private static async Task WriteTests(string[] tests)
         {
-            return;
+            var filePath = "";
+
+            foreach (var test in tests)
+            {
+                var encodedText = Encoding.Unicode.GetBytes(test);
+
+                using var sourceStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None,
+                    bufferSize: 4096, useAsync: true);
+
+                await sourceStream.WriteAsync(encodedText, 0, encodedText.Length);
+            }
         }
-        
+
     }
     
 }
