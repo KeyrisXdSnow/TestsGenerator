@@ -38,8 +38,7 @@ namespace TestsGeneratorLib
         /// </returns>
         public static Task GenerateCLasses(IEnumerable<string> classPaths, string testPath, int filesToLoadThreadAmount, int testToGenerateThreadAmount, int filesToWriteThreadAmount)
         {
-
-            if (!Directory.Exists(DirPath))
+            if (!Directory.Exists(testPath))
             {
                 Console.WriteLine(new FileNotFoundException().Message);
                 return Task.CompletedTask;
@@ -76,8 +75,13 @@ namespace TestsGeneratorLib
                 loadClasses.Post(path);
             }
             
-            // Mark the head of the pipeline as complete. 
+            // Mark the head of the pipeline as complete.
+            loadClasses.Complete();
+            
+            
+            // Wait for the last block in the pipeline to process all messages.
             loadClasses.Completion.Wait(); // пока wait ибо классы просто не успевают генерится 
+            
             return writeTests.Completion;
         }
 

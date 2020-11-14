@@ -8,7 +8,7 @@ namespace TestsGenerator
     {
         public static void Main()
         {
-            const string testPath = "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\C1lasses\\Tests\\";
+            const string testPath = "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\Tests\\";
             var collection = new List<string>
             {
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ClassFormatter.cs",
