@@ -1,9 +1,20 @@
 ﻿﻿using System;
+ using System.Collections.Generic;
 
-namespace AssemblyBrowserLib.format
+ namespace AssemblyBrowserLib.format
 {
-    public static class ClassFormatter
+    public  class ClassFormatter
     {
+        private IEnumerable<string> _list;
+        public ClassFormatter(IEnumerable<string> list)
+        {
+            _list = list;
+        }
+
+        public ClassFormatter()
+        {
+        }
+        
         public static string Format(Type type)
         {
             

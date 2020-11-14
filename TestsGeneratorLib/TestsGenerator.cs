@@ -4,18 +4,35 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Moq;
 
 namespace TestsGeneratorLib
 {
    
     public static class TestsGenerator
     {
+        private static readonly List<UsingDirectiveSyntax> DefaultLoadDirectiveList = new List<UsingDirectiveSyntax>()
+        {
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Collections.Generic")),
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Linq")),
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Text")),
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("NUnit.Framework"))   
+        };
+        private static readonly List<UsingDirectiveSyntax> AdditionalLoadDirectiveList = new List<UsingDirectiveSyntax>()
+        {
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Moq")),
+            SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("MyCode"))   
+        };
+
         private static string DirPath { get; set; } 
         /// <summary>
         /// Generates test classes using Dataflow API:. A 3 block conveyor belt is used :
@@ -36,8 +53,9 @@ namespace TestsGeneratorLib
         /// all generated test classes are compiled when included in a separate project, in which there is a link to the project with the tested classes;
         /// all generated tests fail.
         /// </returns>
-        public static Task GenerateCLasses(IEnumerable<string> classPaths, string testPath, int filesToLoadThreadAmount, int testToGenerateThreadAmount, int filesToWriteThreadAmount)
+    public static Task GenerateCLasses(IEnumerable<string> classPaths, string testPath, int filesToLoadThreadAmount, int testToGenerateThreadAmount, int filesToWriteThreadAmount)
         {
+
             if (!Directory.Exists(testPath))
             {
                 Console.WriteLine(new FileNotFoundException().Message);
@@ -76,8 +94,7 @@ namespace TestsGeneratorLib
             }
             
             // Mark the head of the pipeline as complete.
-            loadClasses.Complete();
-            
+            //loadClasses.Complete();
             
             // Wait for the last block in the pipeline to process all messages.
             loadClasses.Completion.Wait(); // пока wait ибо классы просто не успевают генерится 
@@ -164,8 +181,13 @@ namespace TestsGeneratorLib
         /// We create a test in the form of a tree where is the root namespace.
         /// </summary>
         /// <param name="classDeclaration"> generated test </param>
-        private static string CreateTest(BaseTypeDeclarationSyntax classDeclaration)
+        private static string CreateTest(TypeDeclarationSyntax classDeclaration)
         {
+            // create unit
+            var unit = SyntaxFactory.CompilationUnit();
+            unit = DefaultLoadDirectiveList.Aggregate(unit, (current, loadDirective) => current.AddUsings(loadDirective));
+
+            
             // add methods
             var methods = classDeclaration.DescendantNodes().OfType<MethodDeclarationSyntax>();
             var members = new List<MethodDeclarationSyntax>();
@@ -187,9 +209,20 @@ namespace TestsGeneratorLib
             var @class = SyntaxFactory.ClassDeclaration(classDeclaration.Identifier.Text + "Test")
                 .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                 .AddAttributeLists(SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(
-                    SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("TestFixture"))))).
-                AddMembers(members.ToArray());
-            
+                    SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("TestFixture")))));
+
+            var holder = CheckConstructors(classDeclaration);
+
+            if (holder != null)
+            {
+                @class = @class.AddMembers(holder.FieldDeclarations.ToArray());
+                @class = @class.AddMembers(holder.MethodDeclarations.ToArray());
+                
+                unit = AdditionalLoadDirectiveList.Aggregate(unit, (current, loadDirective) => current.AddUsings(loadDirective));
+
+            }
+
+            @class = @class.AddMembers(members.ToArray());
             
             // add namespace declaration 
             string classNamespaceName = null;
@@ -199,18 +232,9 @@ namespace TestsGeneratorLib
                 classNamespaceName = namespaceDeclarationSyntax.Name.ToString();
             }
             var @namespace = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(classNamespaceName ?? "Kra" + ".Test")).AddMembers(@class);
+            
 
-            var test = SyntaxFactory.CompilationUnit()
-                .AddUsings(
-                SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
-                SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Collections.Generic")),
-                SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Linq")),
-                SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Text")),
-                SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("NUnit.Framework"))
-                )
-                .AddMembers(@namespace)
-                .NormalizeWhitespace()
-                .ToFullString();
+            var test = unit.AddMembers(@namespace).NormalizeWhitespace().ToFullString();
             
             return test;
         }
@@ -223,7 +247,146 @@ namespace TestsGeneratorLib
         private static IEnumerable<ClassDeclarationSyntax> GetClassesFromText(string text)
         {
             var tree = CSharpSyntaxTree.ParseText(text);
-            return tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>();
+            return tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>().
+                Where(@class => @class.Modifiers.Any(SyntaxKind.PublicKeyword));
+        }
+
+
+        private static DeclarationHolder CheckConstructors(TypeDeclarationSyntax classDeclaration)
+        {
+            var constructors = classDeclaration.Members.OfType<ConstructorDeclarationSyntax>();
+            var regex = new Regex("I[A-Z]{1}.+");
+            
+            var fieldList = new List<FieldDeclarationSyntax>();
+            var memberList = new List<ExpressionStatementSyntax>();
+
+            foreach (var constructor in constructors)
+            {
+                var dependencyParam = constructor.ParameterList.Parameters.Where(parameter =>
+                    parameter.Type != null && regex.IsMatch(parameter.Type.ToFullString())).ToList();
+
+                if (dependencyParam.Count == 0) continue;
+                
+                
+                foreach (var parameter in dependencyParam)
+                {
+                    fieldList.Add(SyntaxFactory.FieldDeclaration(
+                            SyntaxFactory.VariableDeclaration(
+                                    SyntaxFactory.IdentifierName(classDeclaration.Identifier.Text))
+                                .WithVariables(
+                                    SyntaxFactory.SingletonSeparatedList(
+                                        SyntaxFactory.VariableDeclarator(
+                                            SyntaxFactory.Identifier("_" + classDeclaration.Identifier.Text)
+                                            )
+                                        )
+                                    )
+                            )
+                        .WithModifiers(
+                            SyntaxFactory.TokenList(
+                                SyntaxFactory.Token(SyntaxKind.PrivateKeyword))).NormalizeWhitespace()
+                    );
+                    fieldList.Add(
+                        SyntaxFactory.FieldDeclaration(
+                                SyntaxFactory.VariableDeclaration(
+                                        SyntaxFactory.GenericName(
+                                                SyntaxFactory.Identifier("Mock"))
+                                            .WithTypeArgumentList(
+                                                SyntaxFactory.TypeArgumentList(
+                                                    SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                                                        SyntaxFactory.IdentifierName(parameter.Type.ToFullString()
+                                                        )
+                                                        )
+                                                    )
+                                                )
+                                        )
+                                    .WithVariables(
+                                        SyntaxFactory.SingletonSeparatedList(
+                                            SyntaxFactory.VariableDeclarator(
+                                                SyntaxFactory.Identifier("_" + parameter.Identifier.Text)
+                                                )
+                                            )
+                                        )
+                                )
+                            .WithModifiers(
+                                SyntaxFactory.TokenList(
+                                    SyntaxFactory.Token(SyntaxKind.PrivateKeyword))).NormalizeWhitespace()
+                    );
+
+                    memberList.Add(
+                        SyntaxFactory.ExpressionStatement(
+                                SyntaxFactory.AssignmentExpression(
+                                    SyntaxKind.SimpleAssignmentExpression, 
+                                    SyntaxFactory.IdentifierName("_" + parameter.Identifier.Text),
+                                    SyntaxFactory.ObjectCreationExpression(
+                                            SyntaxFactory.GenericName(SyntaxFactory.Identifier("Mock"))
+                                                .WithTypeArgumentList(
+                                                    SyntaxFactory.TypeArgumentList(
+                                                        SyntaxFactory.SingletonSeparatedList<TypeSyntax>(
+                                                            SyntaxFactory.IdentifierName(parameter.Type.ToFullString()
+                                                            )
+                                                            )
+                                                        )
+                                                    )
+                                            )
+                                    .WithArgumentList(SyntaxFactory.ArgumentList()
+                                    )
+                                )
+                            )
+                            .NormalizeWhitespace()
+                    );
+                    memberList.Add(
+                            SyntaxFactory.ExpressionStatement(
+                                 SyntaxFactory.AssignmentExpression(
+                                     SyntaxKind.SimpleAssignmentExpression, 
+                                     SyntaxFactory.IdentifierName("_" + classDeclaration.Identifier.Text), 
+                                     SyntaxFactory.ObjectCreationExpression(
+                                             SyntaxFactory.IdentifierName(classDeclaration.Identifier.Text)
+                                             )
+                                         .WithArgumentList(
+                                             SyntaxFactory.ArgumentList(
+                                                 SyntaxFactory.SingletonSeparatedList(
+                                                     SyntaxFactory.Argument(
+                                                         SyntaxFactory.MemberAccessExpression(
+                                                             SyntaxKind.SimpleMemberAccessExpression, 
+                                                             SyntaxFactory.IdentifierName("_" + parameter.Identifier.Text), 
+                                                             SyntaxFactory.IdentifierName("Object")
+                                                     )
+                                                 )
+                                             )
+                                         )
+                                     )
+                                 )
+                            ).NormalizeWhitespace()
+                    );
+                }
+            }
+            
+            if (fieldList.Count == 0 ) return null;
+            
+            var setUpMethod = SyntaxFactory.SingletonList<MemberDeclarationSyntax>(
+                SyntaxFactory.GlobalStatement(
+                      SyntaxFactory.LocalFunctionStatement(
+                              SyntaxFactory.PredefinedType(
+                                  SyntaxFactory.Token(SyntaxKind.VoidKeyword)), 
+                              SyntaxFactory.Identifier("SetUp"))
+                          .WithAttributeLists(
+                              SyntaxFactory.SingletonList(
+                                  SyntaxFactory.AttributeList(
+                                      SyntaxFactory.SingletonSeparatedList(
+                                          SyntaxFactory.Attribute(
+                                              SyntaxFactory.IdentifierName("SetUp")
+                                              )
+                                          )
+                                      )
+                                  )
+                              )
+                          .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                          .WithBody(SyntaxFactory.Block(memberList))
+                          .NormalizeWhitespace()
+                      )
+                );
+            
+            return new DeclarationHolder(fieldList,setUpMethod);
         }
         
         

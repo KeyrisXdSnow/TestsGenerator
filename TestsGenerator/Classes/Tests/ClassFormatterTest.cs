@@ -3,12 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
+using Moq;
+using MyCode;
 
 namespace Kra.Test
 {
     [TestFixture]
     public class ClassFormatterTest
     {
+        private ClassFormatter _ClassFormatter;
+        private Mock<IEnumerable<string> > _list;
+        [SetUp]
+        public void SetUp()
+        {
+            _list = new Mock<IEnumerable<string> >();
+            _ClassFormatter = new ClassFormatter(_list.Object);
+        }
+
         [Test]
         public  void  FormatTest<>()
         {

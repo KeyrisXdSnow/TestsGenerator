@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using TestsGeneratorLib;
 
 namespace TestsGenerator
 {
-    internal class MainApp
+    internal static class MainApp
     {
         public static void Main()
         {
@@ -17,7 +16,7 @@ namespace TestsGenerator
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\MethodFormatter.cs",
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\PropertiesFormatter.cs"
             };
-            TestsGeneratorLib.TestsGenerator.GenerateCLasses(collection,testPath,4,4,4);
+            TestsGeneratorLib.TestsGenerator.GenerateCLasses(collection,testPath,1,1,1);
             Console.WriteLine("Finish");
         }
     }
