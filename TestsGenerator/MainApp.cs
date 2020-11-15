@@ -16,7 +16,7 @@ namespace TestsGenerator
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\MethodFormatter.cs",
                 "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\PropertiesFormatter.cs"
             };
-            TestsGeneratorLib.TestsGenerator.GenerateCLasses(collection,testPath,1,1,1);
+            TestsGeneratorLib.TestsGenerator.GenerateCLasses(collection, testPath, 1, 1, 1);
             Console.WriteLine("Finish");
         }
     }

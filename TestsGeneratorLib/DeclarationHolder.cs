@@ -8,8 +8,8 @@ namespace TestsGeneratorLib
     {
         
         public List<FieldDeclarationSyntax> FieldDeclarations { get; }
-        public SyntaxList<MemberDeclarationSyntax> MethodDeclarations { get; }
-        public DeclarationHolder(List<FieldDeclarationSyntax> fieldDeclarations, SyntaxList<MemberDeclarationSyntax> methodDeclarations)
+        public MethodDeclarationSyntax MethodDeclarations { get; }
+        public DeclarationHolder(List<FieldDeclarationSyntax> fieldDeclarations, MethodDeclarationSyntax methodDeclarations)
         {
             FieldDeclarations = fieldDeclarations;
             MethodDeclarations = methodDeclarations;

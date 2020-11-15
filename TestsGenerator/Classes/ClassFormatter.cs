@@ -15,7 +15,7 @@
         {
         }
         
-        public static string Format(Type type)
+        public static string Format(Type type, int kra)
         {
             
             var na = type.Namespace;
