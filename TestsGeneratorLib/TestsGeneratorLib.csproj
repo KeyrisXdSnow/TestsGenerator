@@ -126,7 +126,7 @@
         <Compile Include="DeclarationContainer.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="SyntaxNodeHelper.cs" />
-        <Compile Include="TestsGenerator.cs" />
+        <Compile Include="NUnitTestsGenerator.cs" />
     </ItemGroup>
     <ItemGroup>
       <None Include="packages.config" />

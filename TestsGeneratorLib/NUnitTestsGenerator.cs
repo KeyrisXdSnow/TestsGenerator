@@ -13,8 +13,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace TestsGeneratorLib
 {
-    public static class TestsGenerator
-    {
+    public class NUnitTestsGenerator
+    { 
+        public NUnitTestsGenerator()
+        {
+            
+        }
+
         private static readonly List<UsingDirectiveSyntax> DefaultLoadDirectiveList = new List<UsingDirectiveSyntax>()
         {
             SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
@@ -54,16 +59,16 @@ namespace TestsGeneratorLib
         /// all generated test classes are compiled when included in a separate project, in which there is a link to the project with the tested classes;
         /// all generated tests fail.
         /// </returns>
-        public static Task GenerateCLasses(IEnumerable<string> classPaths, string testPath, int filesToLoadThreadAmount,
+        public Task GenerateCLasses(IEnumerable<string> classPaths, string testPath, int filesToLoadThreadAmount,
             int testToGenerateThreadAmount, int filesToWriteThreadAmount)
         {
             if (!Directory.Exists(testPath))
             {
-                Console.WriteLine(new FileNotFoundException().Message);
-                return Task.CompletedTask;
+                throw new FileNotFoundException("Path " +"\""+ testPath + "\" " + "Invalid ");
             }
-
+            
             DirPath = testPath;
+            
             var maxFilesToLoad = new ExecutionDataflowBlockOptions() {MaxDegreeOfParallelism = filesToLoadThreadAmount};
             var maxTestToGenerate = new ExecutionDataflowBlockOptions()
                 {MaxDegreeOfParallelism = testToGenerateThreadAmount};
@@ -95,15 +100,24 @@ namespace TestsGeneratorLib
 
             foreach (var path in classPaths)
             {
-                loadClasses.Post(path);
+                try
+                {
+                    if (!File.Exists(path))
+                    {
+                        throw new FileNotFoundException("Path " +"\""+ path + "\" " + "Invalid ");
+                    }
+                    
+                    loadClasses.Post(path);
+                }
+                catch (FileNotFoundException e)
+                {
+                    Console.WriteLine(e.Message);
+                }
             }
-
-            // Mark the head of the pipeline as complete.
-            //loadClasses.Complete();
-
-            // Wait for the last block in the pipeline to process all messages.
-            loadClasses.Completion.Wait(); // пока wait ибо классы просто не успевают генерится 
-
+            
+            loadClasses.Complete();
+         
+             
             return writeTests.Completion;
         }
 
@@ -114,11 +128,12 @@ namespace TestsGeneratorLib
         /// <returns> class as text </returns>
         private static async Task<string> GetTextFromFile(string path)
         {
+
             using var sourceStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
                 bufferSize: 4096, useAsync: true);
-
+            
             var sb = new StringBuilder();
-
+  
             var buffer = new byte[0x1000];
             int numRead;
 
@@ -152,7 +167,6 @@ namespace TestsGeneratorLib
                 using var outputFile = new StreamWriter(filePath);
                 await outputFile.WriteAsync(test);
 
-                //mmm работает через жопу, одобряю такую документацию 
             }
         }
 

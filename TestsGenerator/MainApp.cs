@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using TestsGeneratorLib;
 
 namespace TestsGenerator
 {
@@ -7,16 +10,29 @@ namespace TestsGenerator
     {
         public static void Main()
         {
-            const string testPath = "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\Tests\\";
+
+            var path = Path.GetFullPath(@"..\..\..\..\TestsGenerator\Classes\GeneratedTests\");
+            const string testPath = @"..\..\Classes\\GeneratedTests\\";
             var collection = new List<string>
             {
-                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ClassFormatter.cs",
-                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\ConstructorFormatter.cs",
-                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\FieldFormatter.cs",
-                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\MethodFormatter.cs",
-                "E:\\Sharaga\\SPP\\TestsGenerator\\TestsGenerator\\Classes\\PropertiesFormatter.cs"
+                @"..\..\Classes\\ClassFormatter.cs",
+                @"..\..\Classes\\ConstructorFormatter.cs",
+                @"..\..\Classes\\\FieldFormatter.cs",
+                @"..\..\Classes\\MethodFormatter.cs",
+                @"..\..\Classes\\PropertiesFormatter.cs"
             };
-            TestsGeneratorLib.TestsGenerator.GenerateCLasses(collection, testPath, 1, 1, 1);
+            Task task = null;
+            var generator = new NUnitTestsGenerator();
+            try
+            {
+                task = generator.GenerateCLasses(collection, testPath, 6, 2,6);
+                task?.Wait();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            
             Console.WriteLine("Finish");
         }
     }
