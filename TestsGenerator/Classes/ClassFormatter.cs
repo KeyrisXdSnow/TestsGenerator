@@ -14,14 +14,14 @@ public class ClassFormatter
     {
     }
 
-    public static string Format1(Type type1, int kra1)
+    public static void Format1(Type type1, int kra1)
     {
         var na = type1.Namespace;
         var name = type1.Name;
 
         var result = string.Join(" ", GetTypeAccessorModifiers(type1), GetTypeModifiers(type1),
             GetType(type1), type1.Name);
-        return result;
+        
     }
 
 
@@ -67,7 +67,7 @@ public class ClassFormatter
         return "";
     }
 
-    private static string GetType(Type type)
+    public static string GetType(Type type)
     {
         if (type.IsClass)
             return "class ";

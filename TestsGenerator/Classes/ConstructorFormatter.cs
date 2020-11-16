@@ -15,11 +15,11 @@ namespace AssemblyBrowserLib.format
             return result;
         }
 
-        private static string GetName(ConstructorInfo constrInfo)
+        public static string GetName(ConstructorInfo constrInfo)
         {
             return constrInfo.Name; 
         }
-        private static string GetTypeAccessorModifiers(ConstructorInfo constrInfo)
+        public static string GetTypeAccessorModifiers(ConstructorInfo constrInfo)
         {
             // new 
             if (constrInfo.IsPublic)
@@ -77,7 +77,7 @@ namespace AssemblyBrowserLib.format
         }
 
 
-        private static string GetGenericArgumentsType(IEnumerable<Type> arguments)
+        public static string GetGenericArgumentsType(IEnumerable<Type> arguments)
         {
             var stringBuilder = new StringBuilder();
 
