@@ -33,7 +33,6 @@ namespace TestsGeneratorLib
             new List<UsingDirectiveSyntax>()
             {
                 SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Moq")),
-                SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("MyCode"))
             };
 
         private const string Namespace = "    ";
@@ -200,7 +199,8 @@ namespace TestsGeneratorLib
         private static IEnumerable<ClassDeclarationSyntax> GetClassesFromText(string text)
         {
             var tree = CSharpSyntaxTree.ParseText(text);
-            return tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>();
+            return tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+                .Where(@class => @class.Modifiers.Any(SyntaxKind.PublicKeyword)).ToArray();
         }
 
         /// <summary>
@@ -215,6 +215,8 @@ namespace TestsGeneratorLib
             var unit = SyntaxFactory.CompilationUnit();
             unit = DefaultLoadDirectiveList.Aggregate(unit,
                 (current, loadDirective) => current.AddUsings(loadDirective));
+            
+            bool isStatic = classDeclaration.Modifiers.Any(SyntaxKind.StaticKeyword);
 
             // create class
             // add private class field
@@ -288,7 +290,11 @@ namespace TestsGeneratorLib
                         SyntaxKind.CloseBraceToken,
                         SyntaxFactory.TriviaList()
                     )
-                ).AddMembers(
+                );
+
+            if (!isStatic)
+            {
+                @class = @class.AddMembers(
                     SyntaxFactory.FieldDeclaration(
                             SyntaxFactory.VariableDeclaration(
                                     SyntaxFactory.IdentifierName(
@@ -303,7 +309,10 @@ namespace TestsGeneratorLib
                                 .WithVariables(
                                     SyntaxFactory.SingletonSeparatedList(
                                         SyntaxFactory.VariableDeclarator(
-                                            SyntaxFactory.Identifier("_" + classDeclaration.Identifier.Text)
+                                            SyntaxFactory.Identifier(
+                                                "_" +
+                                                classDeclaration.Identifier.Text[0].ToString().ToLower() +
+                                                classDeclaration.Identifier.Text.Substring(1))
                                         )
                                     )
                                 )
@@ -330,18 +339,19 @@ namespace TestsGeneratorLib
                         )
                 );
 
-            // add dependency injection 
-            var holder = GetDepInjection(classDeclaration);
-            if (holder != null)
-            {
-                // add fileds
-                @class = @class.AddMembers(holder.FieldDeclarations.ToArray());
-                // add SetUp method
-                @class = @class.AddMembers(holder.MethodDeclarations);
+                // add dependency injection 
+                var holder = GetDepInjection(classDeclaration);
+                if (holder != null)
+                {
+                    // add fileds
+                    @class = @class.AddMembers(holder.FieldDeclarations.ToArray());
+                    // add SetUp method
+                    @class = @class.AddMembers(holder.MethodDeclarations);
 
-                // add using class namespace
-                unit = AdditionalLoadDirectiveList.Aggregate(unit,
-                    (current, loadDirective) => current.AddUsings(loadDirective));
+                    // add using class namespace
+                    unit = AdditionalLoadDirectiveList.Aggregate(unit,
+                        (current, loadDirective) => current.AddUsings(loadDirective));
+                }
             }
 
             // add methods
@@ -549,7 +559,9 @@ namespace TestsGeneratorLib
                                                 SyntaxFactory.TriviaList(
                                                     SyntaxFactory.Whitespace(Namespace + Namespace + Namespace)
                                                 ),
-                                                "_" + classDeclaration.Identifier.Text,
+                                                "_" + 
+                                                classDeclaration.Identifier.Text[0].ToString().ToLower() +
+                                                classDeclaration.Identifier.Text.Substring(1),
                                                 SyntaxFactory.TriviaList(
                                                     SyntaxFactory.Space
                                                 )
@@ -738,13 +750,13 @@ namespace TestsGeneratorLib
                                     )
                                 )
                                 .WithVariables(
-                                    SyntaxFactory.SingletonSeparatedList<VariableDeclaratorSyntax>(
+                                    SyntaxFactory.SingletonSeparatedList(
                                         SyntaxFactory.VariableDeclarator(
                                                 SyntaxFactory.Identifier(
                                                     SyntaxFactory.TriviaList(),
                                                     parameter.Identifier.Text,
                                                     SyntaxFactory.TriviaList(
-                                                        SyntaxFactory.Space) //SyntaxKind.DefaultKeyword
+                                                        SyntaxFactory.Space)
                                                 )
                                             )
                                             .WithInitializer(
@@ -881,15 +893,19 @@ namespace TestsGeneratorLib
                                 )
                             )
                     );
-
+                
+                var fieldName = classDeclaration.Identifier.Text;
+                if (!method.Modifiers.Any(SyntaxKind.StaticKeyword))
+                    fieldName = "_" + fieldName[0].ToString().ToLower() + fieldName.Substring(1);
+                
                 if (!method.ReturnType.ToString().Equals("void"))
                 {
                     // act
                     member = member.AddBodyStatements(
                             SyntaxFactory.LocalDeclarationStatement(
                                 SyntaxFactory.VariableDeclaration(
-                                        SyntaxFactory.PredefinedType(
-                                            SyntaxFactory.Token(
+                                        SyntaxFactory.IdentifierName(
+                                            SyntaxFactory.Identifier(
                                                 SyntaxFactory.TriviaList(
                                                     new[]
                                                     {
@@ -897,10 +913,9 @@ namespace TestsGeneratorLib
                                                         SyntaxFactory.Whitespace(Namespace + Namespace + Namespace)
                                                     }
                                                 ),
-                                                SyntaxKind.IntKeyword,
+                                                method.ReturnType.ToString(),
                                                 SyntaxFactory.TriviaList(
-                                                    SyntaxFactory.Space
-                                                )
+                                                    SyntaxFactory.Space)
                                             )
                                         )
                                     )
@@ -914,7 +929,7 @@ namespace TestsGeneratorLib
                                                                 SyntaxFactory.MemberAccessExpression(
                                                                     SyntaxKind.SimpleMemberAccessExpression,
                                                                     SyntaxFactory.IdentifierName(
-                                                                        "_" + classDeclaration.Identifier.Text),
+                                                                        fieldName),
                                                                     SyntaxFactory.IdentifierName(method.Identifier.Text)
                                                                 )
                                                             )
@@ -934,22 +949,19 @@ namespace TestsGeneratorLib
                         .AddBodyStatements( // assert
                             SyntaxFactory.LocalDeclarationStatement(
                                     SyntaxFactory.VariableDeclaration(
-                                            SyntaxFactory.PredefinedType(
-                                                SyntaxFactory.Token(
+                                            SyntaxFactory.IdentifierName(
+                                                SyntaxFactory.Identifier(
                                                     SyntaxFactory.TriviaList(
                                                         new[]
                                                         {
-                                                            SyntaxFactory.Whitespace(Namespace + Namespace + Namespace),
                                                             SyntaxFactory.LineFeed,
-                                                            SyntaxFactory.Whitespace(Namespace + Namespace + Namespace),
                                                             SyntaxFactory.LineFeed,
                                                             SyntaxFactory.Whitespace(Namespace + Namespace + Namespace)
                                                         }
                                                     ),
-                                                    SyntaxKind.IntKeyword,
+                                                    method.ReturnType.ToString(),
                                                     SyntaxFactory.TriviaList(
-                                                        SyntaxFactory.Space
-                                                    )
+                                                        SyntaxFactory.Space)
                                                 )
                                             )
                                         )
@@ -966,9 +978,9 @@ namespace TestsGeneratorLib
                                                     )
                                                     .WithInitializer(
                                                         SyntaxFactory.EqualsValueClause(
-                                                                SyntaxFactory.LiteralExpression(
-                                                                    SyntaxKind.NumericLiteralExpression,
-                                                                    SyntaxFactory.Literal(0)
+                                                            SyntaxFactory.LiteralExpression(
+                                                                SyntaxKind.DefaultLiteralExpression,
+                                                                SyntaxFactory.Token(SyntaxKind.DefaultKeyword)
                                                                 )
                                                             )
                                                             .WithEqualsToken(
@@ -1118,7 +1130,7 @@ namespace TestsGeneratorLib
                                                                 SyntaxFactory.Whitespace(
                                                                     Namespace + Namespace + Namespace)
                                                             }),
-                                                        "_" + classDeclaration.Identifier.Text,
+                                                        fieldName,
                                                         SyntaxFactory.TriviaList())),
                                                 SyntaxFactory.IdentifierName(method.Identifier.Text)))
                                         .WithArgumentList(

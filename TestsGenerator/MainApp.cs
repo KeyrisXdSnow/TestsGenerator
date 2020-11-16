@@ -11,7 +11,7 @@ namespace TestsGenerator
         public static void Main()
         {
 
-            var path = Path.GetFullPath(@"..\..\..\..\TestsGenerator\Classes\GeneratedTests\");
+            //var genPath = Path.GetFullPath(@"..\..\..\..\TestsGenerator\Tests\GenClasses\");
             const string testPath = @"..\..\Classes\\GeneratedTests\\";
             var collection = new List<string>
             {
@@ -21,11 +21,10 @@ namespace TestsGenerator
                 @"..\..\Classes\\MethodFormatter.cs",
                 @"..\..\Classes\\PropertiesFormatter.cs"
             };
-            Task task = null;
             var generator = new NUnitTestsGenerator();
             try
             {
-                task = generator.GenerateCLasses(collection, testPath, 6, 2,6);
+                var task = generator.GenerateCLasses(collection, testPath, 1, 1,1);
                 task?.Wait();
             }
             catch (Exception e)

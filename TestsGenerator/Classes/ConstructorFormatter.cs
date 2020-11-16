@@ -8,6 +8,10 @@ namespace AssemblyBrowserLib.format
 {
     public static class ConstructorFormatter
     {
+        static ConstructorFormatter()
+        {
+            
+        }
         public static string Format(ConstructorInfo constrInfo)
         {
             var result = string.Join(" ", GetTypeAccessorModifiers(constrInfo),
