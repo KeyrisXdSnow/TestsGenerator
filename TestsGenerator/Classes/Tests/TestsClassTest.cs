@@ -6,10 +6,10 @@ using NUnit.Framework;
 
 namespace Kra.Test.Test
 {
-[TestFixture]
+
+    [TestFixture]
     public class TestsClassTest
     {
         private TestsClass _TestsClass;    
-        
     }
 }

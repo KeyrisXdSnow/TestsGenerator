@@ -4,7 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestsGenerator", "TestsGene
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestsGeneratorLib", "TestsGeneratorLib\TestsGeneratorLib.csproj", "{41AC5090-6D08-4C4F-9ED3-121F9680AB21}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestProject1", "TestProject1\TestProject1.csproj", "{02ABCE20-1FA9-4A50-B7C9-65529BDF52C9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{FF4808E5-F901-47A4-8AAD-3433E8813423}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,9 +20,9 @@ Global
 		{41AC5090-6D08-4C4F-9ED3-121F9680AB21}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{41AC5090-6D08-4C4F-9ED3-121F9680AB21}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{41AC5090-6D08-4C4F-9ED3-121F9680AB21}.Release|Any CPU.Build.0 = Release|Any CPU
-		{02ABCE20-1FA9-4A50-B7C9-65529BDF52C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{02ABCE20-1FA9-4A50-B7C9-65529BDF52C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{02ABCE20-1FA9-4A50-B7C9-65529BDF52C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{02ABCE20-1FA9-4A50-B7C9-65529BDF52C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF4808E5-F901-47A4-8AAD-3433E8813423}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF4808E5-F901-47A4-8AAD-3433E8813423}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF4808E5-F901-47A4-8AAD-3433E8813423}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF4808E5-F901-47A4-8AAD-3433E8813423}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
